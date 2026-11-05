@@ -1,0 +1,20 @@
+{
+  "name": "my-plugin-marketplace",
+  "description": "JaZahn's personal Claude Code plugin marketplace. Same shape as harvard-huit/ats-plugin-marketplace, for plugins that are personal rather than team-scoped.",
+  "owner": {
+    "name": "JaZahn Clevenger"
+  },
+  "plugins": [
+    {
+      "name": "trello",
+      "source": "./plugins/trello",
+      "description": "Ask Claude about, and act on, your Trello boards, lists, and cards through Atlassian's hosted Trello MCP server. Atlassian account login in the browser through /mcp; no API key or token to create. Skill /trello:trello-setup.",
+      "category": "productivity",
+      "tags": [
+        "trello",
+        "atlassian",
+        "mcp"
+      ]
+    }
+  ]
+}

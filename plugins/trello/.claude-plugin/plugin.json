@@ -1,0 +1,12 @@
+{
+  "name": "trello",
+  "displayName": "Trello",
+  "version": "0.1.0",
+  "description": "Ask Claude about, and act on, your Trello boards, lists, and cards through Atlassian's hosted Trello MCP server (mcp.trello.com). Authentication is an Atlassian account login in your browser through /mcp; no API key, token, client ID, or secret to create. The server grants read and write scopes, so Claude can change boards once you approve a call.",
+  "author": {
+    "name": "JaZahn Clevenger"
+  },
+  "repository": "https://github.com/jazahn/my-plugin-repository",
+  "license": "MIT",
+  "keywords": ["trello", "atlassian", "kanban", "mcp"]
+}
