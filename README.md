@@ -8,7 +8,7 @@ HUIT marketplaces instead.
 
 | Plugin | What it does | Entry point |
 |---|---|---|
-| `trello` | Read and change your Trello boards, lists, and cards through Atlassian's hosted Trello MCP server, with an Atlassian login and no API key | `/trello:trello-setup`, then `/mcp` |
+| `trello` | Read and change your Trello boards, lists, and cards through Atlassian's hosted Trello MCP server, with an Atlassian login and no API key. Includes `card-first`: find or create the card for a work item before starting, keep it updated | `/trello:trello-setup`, then `/mcp`; `/trello:card-first` |
 
 ## Install
 
@@ -53,6 +53,29 @@ as needing authentication; it checks for a hand-added duplicate, walks through
 This is a different server from the Atlassian Rovo MCP server (`atlassian`,
 for Jira and Confluence). Having one connected does not connect the other.
 
+### card-first
+
+A Trello counterpart to an "issue first" habit: before Claude starts on a
+work item (a request that will change files or produce a deliverable, never a
+question), it looks for the matching card on your board and asks one question
+at most: link an existing card, create a drafted one, or skip. It works in any
+directory, git or not. When the work lands or the item wraps up, it offers one
+batched update to the card (a short comment, and a move to done when the item
+is finished). Nothing is written to Trello without your yes.
+
+It is configured per project in `CLAUDE.local.md` (per-machine, never
+committed):
+
+```
+card-first: on                                   # or off; the skill asks once when unset
+card-first-board: https://trello.com/b/<shortLink>/<slug>   # set automatically when you have one board
+card-first-list: Do it                           # optional: the list new cards go on
+```
+
+A `SessionStart` hook reads that file and reminds Claude to run the check when
+a work item starts; with `card-first: off` it stays silent. Invoke it by hand
+with `/trello:card-first`.
+
 ## Layout
 
 ```
@@ -60,7 +83,10 @@ for Jira and Confluence). Having one connected does not connect the other.
 plugins/trello/
   .claude-plugin/plugin.json             manifest
   .mcp.json                              trello (hosted, OAuth with dynamic client registration)
+  hooks/hooks.json                       SessionStart nudge for card-first (reads CLAUDE.local.md)
+  scripts/card-first-nudge.sh            the hook script; prints nothing when card-first is off
   skills/trello-setup/SKILL.md           the /mcp walkthrough and troubleshooting
+  skills/card-first/SKILL.md             find or create the card for a work item, keep it updated
 ```
 
 Validate before committing:

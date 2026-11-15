@@ -8,7 +8,7 @@
     {
       "name": "trello",
       "source": "./plugins/trello",
-      "description": "Ask Claude about, and act on, your Trello boards, lists, and cards through Atlassian's hosted Trello MCP server. Atlassian account login in the browser through /mcp; no API key or token to create. Skill /trello:trello-setup.",
+      "description": "Ask Claude about, and act on, your Trello boards, lists, and cards through Atlassian's hosted Trello MCP server. Atlassian account login in the browser through /mcp; no API key or token to create. Skills /trello:trello-setup and /trello:card-first (find or create the card for a work item before starting, keep it updated).",
       "category": "productivity",
       "tags": [
         "trello",

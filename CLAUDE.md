@@ -22,6 +22,13 @@ local registration, so decide the final name before anyone else adds it.
 
 One plugin so far: `trello`.
 
+Status (2026-11-15): all three `claude plugin validate` targets pass;
+`trello` 0.2.0 adds the `card-first` skill and its `SessionStart` hook (#2)
+and is installed at user scope from this checkout on JaZahn's Mac. The
+2026-11-05 scaffold is committed and pushed (758cd84) and a claude.ai-synced
+copy of 0.1.0 exists; the 0.2.0 changes are uncommitted. Tracking: issue #1
+(the plugin and its verification gate), #2 (`card-first`), #3 (repo rename).
+
 ## Commands
 
 Validate before every commit. Each call checks one thing (marketplace
@@ -57,8 +64,10 @@ the only update signal installed copies see.
 plugins/<name>/
   .claude-plugin/plugin.json        name, displayName, version, description, author, repository, license, keywords
   .mcp.json                         MCP servers, at the plugin root (not inside .claude-plugin/)
+  hooks/hooks.json                  hooks, wrapped in a top-level "hooks" key
+  scripts/*.sh                      hook helpers, run as "${CLAUDE_PLUGIN_ROOT}"/scripts/<name>.sh
   skills/<skill>/SKILL.md           frontmatter name = invocation name, /<plugin>:<skill>
-CLAUDE.local.md                     per-machine, excluded via .git/info/exclude (issue-first setting)
+CLAUDE.local.md                     per-machine, excluded via .git/info/exclude (issue-first and card-first settings)
 ```
 
 - Inside a plugin only `plugin.json` lives in `.claude-plugin/`; everything
@@ -79,7 +88,8 @@ CLAUDE.local.md                     per-machine, excluded via .git/info/exclude 
 `trello` is the thinnest plugin shape, copied from `huit-maestro` and
 `huit-servicenow-dev` in the ATS marketplace: one `http` server in
 `.mcp.json` plus a `<name>-setup` skill. No `headersHelper`, no wrapper
-script, no hook. It works only when the remote server implements the MCP
+script, no auth hook (the `card-first` hook below is a process nudge, not
+part of the auth path). It works only when the remote server implements the MCP
 authorization spec end to end: `401` with `WWW-Authenticate:
 Bearer resource_metadata=...`, an RFC 9728 protected-resource document naming
 the authorization server, and that server advertising a
@@ -135,14 +145,61 @@ Endpoint `https://mcp.trello.com/v1`, Atlassian-hosted. Probed live
   Jira and Confluence) that may also be configured on a machine. Different
   endpoint, different login; the skill tells people not to confuse the two.
 
+Observed from a session on 2026-11-15 (closes the tool-name part of the #1
+gate): the server exposes fifteen tools, `trelloRead{Board,Card,Checklist,
+Inbox,List,Member,Planner,Workspace}`, `trelloWrite{Board,Card,Checklist,
+Inbox,List,Planner}`, and `trelloSearch`, each with an `action` enum. IDs
+are Atlassian ARIs (`ari:cloud:trello::card/workspace/<ws>/<id>`); most
+read actions also accept a trello.com URL, write actions need the ARI.
+
+### card-first skill (#2)
+
+Shipped in 0.2.0 as `skills/card-first/SKILL.md` plus a `SessionStart`
+hook (`hooks/hooks.json`, `scripts/card-first-nudge.sh`). Decisions, so
+they are not re-litigated:
+
+- **How it fires.** The hook, not a paragraph in `~/.claude/CLAUDE.md`,
+  carries the trigger: it reads the project's `CLAUDE.local.md` and emits
+  `additionalContext` telling Claude to invoke the skill when a work item
+  starts (`on`), to ask once (`unset`), or nothing (`off`). Fixed strings
+  only, no `jq`, exits 0 always, matcher `startup|resume|clear|compact` so
+  the nudge survives compaction. `~/.claude/CLAUDE.md` keeps only the
+  coordination rule with `issue-first` (one combined question when both
+  apply).
+- **Which board.** `card-first-board: <URL>` in `CLAUDE.local.md`; when
+  unset and the member has exactly one open board, the skill uses it and
+  records it. `card-first-list` (name) is recorded on the first create.
+  The skill learns list roles (backlog, next-up, in progress, done,
+  parents) from the board's own list names via `trelloReadBoard get`.
+- **Search behavior** (verified on the `everything` board): `trelloSearch`
+  requires every word of the query as a whole word, so a phrase finds
+  nothing and single-word queries are the rule. `trelloReadCard
+  list_by_board` returned 81 KB for an 81-card board; the skill uses
+  `trelloReadBoard get` for list names and `list_by_list` for the semantic
+  pass instead.
+- **Writes.** Create (name, desc, list), move, add_comment, mark_done;
+  labels only if already on the board and obvious; never due dates. Every
+  write behind an explicit yes. Updates are batched: one offer when work
+  lands or at wrap-up, not per turn.
+- **With issue-first.** Both searches run before one combined question;
+  the card description carries the issue URL; the issue is not edited for
+  the card link.
+
 ### To do
 
-- [ ] Verification gate: install from this checkout, `/mcp` authenticate
-      `trello`, call one listing tool, and record the observed tool names
-      and the consent page's scope list here.
-- [ ] Commit, push, and decide whether to rename the GitHub repo to match
-      the marketplace name (or the reverse) before registering it anywhere
-      but this machine.
+- [x] Install from this checkout (done 2026-11-05, user scope; 0.2.0
+      reinstalled 2026-11-15, cache path
+      `~/.claude/plugins/cache/my-plugin-marketplace/trello/0.2.0`).
+- [ ] Verification gate (#1): `/mcp` authentication and a listing call
+      worked in a session on 2026-11-15 (tool names recorded above). Still
+      missing: the consent page's scope list as shown to the user. Close
+      #1 when that is noted here.
+- [ ] Commit (`Refs #1 #2`), push, and settle #3 (rename the GitHub repo to
+      match the marketplace name, or the reverse) before registering it
+      anywhere but this machine.
+- [ ] `card-first` (#2): shipped in 0.2.0, see the section above. Still to
+      do before closing: try it interactively on a no-match item with
+      create and with skip, and on the wrap-up update; then close #2.
 - [ ] Later, if the bare tools prove awkward: a `trello` query skill with
       usage patterns, after some real use.
 
@@ -151,8 +208,8 @@ Endpoint `https://mcp.trello.com/v1`, Atlassian-hosted. Probed live
 Durable, portable, project-scoped facts go in a committed `.claude/memory/`
 here once there is more than this file can hold comfortably (mirror the ATS
 repo's `INDEX.md` convention and import it from this file). Machine-specific
-facts stay in `~/.claude` memory. The issue-first setting lives in
-`CLAUDE.local.md`, never here.
+facts stay in `~/.claude` memory. The issue-first and card-first settings
+live in `CLAUDE.local.md`, never here.
 
 ## References
 
