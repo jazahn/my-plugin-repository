@@ -271,10 +271,30 @@ not re-litigated:
   (`my-plugin-repository.git`); after the #3 rename GitHub redirects
   clones, so it keeps working.
 
-Known risks to verify on the first runs: the no-App `GITHUB_TOKEN` path
-is not documented by the action (the marketplace clone and plugin install
-steps are confirmed working from the 2026-11-25 run); the rubric's reach
-into `code-review`'s subagents is unverified; the action's default auto permission mode may
+Verified on the first runs (2026-11-25, PR #5 "Enroll this repo in
+automated PR review (pr-assistant)"):
+
+- The no-App path works: `secrets.GITHUB_TOKEN` as `github_token`, the
+  review posts as `github-actions[bot]`. The marketplace clone and plugin
+  install happen on every run (about 10 s). The OAuth token path
+  initializes on `claude-sonnet-5-5`; a review of a one-file PR cost about
+  $0.17 and 20 s.
+- In automation mode the action injects **no** GitHub MCP servers
+  (`mcp_servers: []`) and no PR context into the prompt; the skill reads
+  `$GITHUB_EVENT_PATH` for the PR number and base, and posts with `gh api`
+  (`gh pr` subcommands fail on the detached `pull/N/merge` checkout).
+- The built-in `code-review` skill runs as a forked execution and returns
+  a JSON findings list, but its `--comment` posts nothing in the action.
+  The `review` skill therefore filters and posts the findings itself as
+  one `COMMENT` review with inline comments.
+- `show_full_output: "true"` prints the whole transcript to the public
+  Actions log; use it only for a diagnostic run and never merge it.
+- Empty-string env values in personal mode (`ANTHROPIC_BEDROCK_BASE_URL`)
+  are treated as unset.
+
+Still to verify: the no-App `GITHUB_TOKEN` path
+the rubric's reach into `code-review`'s subagents (the skill filters its
+output instead); the action's default auto permission mode may
 fail on the proxy with "cannot determine the safety of an action" (fix:
 `--permission-mode` in `claude_args`); GHES needs
 `anthropics/claude-code-action` resolvable (GitHub Connect or vendoring)
