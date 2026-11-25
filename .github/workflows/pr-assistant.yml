@@ -44,8 +44,10 @@ jobs:
     runs-on: ubuntu-latest
     env:
       # Forwarded by the action into Claude Code; empty strings in personal
-      # mode are treated as unset (verified 2026-11-25).
-      ANTHROPIC_BEDROCK_BASE_URL: ${{ vars.PR_ASSISTANT_PROXY_URL }}
+      # mode are treated as unset (verified 2026-11-25). Everything mode-
+      # specific is gated on the mode, so a stale variable or secret from
+      # the other mode is ignored.
+      ANTHROPIC_BEDROCK_BASE_URL: ${{ vars.PR_ASSISTANT_MODE == 'team' && vars.PR_ASSISTANT_PROXY_URL || '' }}
       ANTHROPIC_DEFAULT_OPUS_MODEL: ${{ vars.PR_ASSISTANT_MODE == 'team' && (vars.PR_ASSISTANT_OPUS_MODEL || 'us.anthropic.claude-opus-4-8') || '' }}
     steps:
       - name: Check the enrollment record
@@ -75,9 +77,9 @@ jobs:
           # The workflow token, so no Claude GitHub App install is needed.
           # Comments post as github-actions[bot].
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          # Exactly one of these is set per repo; a missing secret is an empty string.
-          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-          anthropic_api_key: ${{ secrets.PR_ASSISTANT_API_KEY }}
+          # Only the current mode's credential is passed; the other is an empty string.
+          claude_code_oauth_token: ${{ vars.PR_ASSISTANT_MODE == 'personal' && secrets.CLAUDE_CODE_OAUTH_TOKEN || '' }}
+          anthropic_api_key: ${{ vars.PR_ASSISTANT_MODE == 'team' && secrets.PR_ASSISTANT_API_KEY || '' }}
           use_bedrock: ${{ vars.PR_ASSISTANT_MODE == 'team' && 'true' || 'false' }}
           settings: ${{ vars.PR_ASSISTANT_MODE == 'team' && '{"env":{"CLAUDE_CODE_SKIP_BEDROCK_AUTH":"1"}}' || '' }}
           claude_args: ${{ vars.PR_ASSISTANT_MODE == 'team' && format('--model {0}', vars.PR_ASSISTANT_MODEL || 'us.anthropic.claude-fable-5') || '' }}
