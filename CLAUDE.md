@@ -260,16 +260,21 @@ not re-litigated:
   to run at a terminal.
 - **0.1 is review-only.** Inline comments and a summary; never pushes;
   not a required check. The `review` skill states the rubric and
-  delegates the diff review and posting to `code-review@claude-plugins-official`,
-  which the workflow installs next to this plugin. The `@claude` mention
+  delegates the diff review and posting to Claude Code's **built-in**
+  `code-review` skill (`/code-review`, no plugin prefix). The first run on
+  2026-11-25 failed because the workflow also listed
+  `code-review@claude-plugins-official`, which the runner's Claude Code
+  2.1.332 could not find in that marketplace even though a local 2.1.267
+  cache lists it; the skill is part of the CLI, so no plugin is needed. The `@claude` mention
   job (fix on request, follow-up PR on request) is 0.2.
 - The marketplace URL in the template is the current repo name
   (`my-plugin-repository.git`); after the #3 rename GitHub redirects
   clones, so it keeps working.
 
 Known risks to verify on the first runs: the no-App `GITHUB_TOKEN` path
-is not documented by the action; the rubric's reach into `code-review`'s
-subagents is unverified; the action's default auto permission mode may
+is not documented by the action (the marketplace clone and plugin install
+steps are confirmed working from the 2026-11-25 run); the rubric's reach
+into `code-review`'s subagents is unverified; the action's default auto permission mode may
 fail on the proxy with "cannot determine the safety of an action" (fix:
 `--permission-mode` in `claude_args`); GHES needs
 `anthropics/claude-code-action` resolvable (GitHub Connect or vendoring)

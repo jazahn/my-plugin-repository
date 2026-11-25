@@ -57,7 +57,5 @@ jobs:
           settings: ${{ vars.PR_ASSISTANT_MODE == 'team' && '{"env":{"CLAUDE_CODE_SKIP_BEDROCK_AUTH":"1"}}' || '' }}
           claude_args: ${{ vars.PR_ASSISTANT_MODE == 'team' && format('--model {0}', vars.PR_ASSISTANT_MODEL) || '' }}
           plugin_marketplaces: https://github.com/jazahn/my-plugin-repository.git
-          plugins: |
-            code-review@claude-plugins-official
-            pr-assistant@my-plugin-marketplace
+          plugins: pr-assistant@my-plugin-marketplace
           prompt: /pr-assistant:review

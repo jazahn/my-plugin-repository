@@ -110,8 +110,8 @@ skills never see the values.
 - `/pr-assistant:review`: the rubric (correctness, security, untested
   behavior changes, scope; small fixes as `suggestion` blocks; out-of-scope
   work as one follow-up paragraph, never a new PR). It delegates the diff
-  review and the inline posting to the official `code-review` plugin, which
-  the workflow installs alongside this one.
+  review and the inline posting to Claude Code's built-in `code-review`
+  skill.
 
 Version 0.1 posts review comments only; it never pushes. Not meant to be a
 required check.

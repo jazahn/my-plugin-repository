@@ -6,9 +6,9 @@ description: Review a pull request against the house rubric and post the finding
 # PR review
 
 Review the pull request, post what matters as inline comments, and stop.
-The diff review and the posting are done by the `code-review:code-review`
-skill; this skill sets the house rules it works under and the frame around
-it. The repo's own `CLAUDE.md`, when it has review standards, layers on
+The diff review and the posting are done by Claude Code's built-in
+`code-review` skill; this skill sets the house rules it works under and
+the frame around it. The repo's own `CLAUDE.md`, when it has review standards, layers on
 top of these rules and wins where they conflict.
 
 ## Which PR
@@ -62,12 +62,12 @@ when the repo's `CLAUDE.md` asks for them.
 
 ## Run the review
 
-Invoke the `code-review:code-review` skill with the effort level
-`medium`, the `--comment` flag so it posts inline comments, and the PR
-target when one is known:
+Invoke the built-in `code-review` skill (no plugin prefix; it ships with
+Claude Code) with the effort level `medium`, the `--comment` flag so it
+posts inline comments, and the PR target when one is known:
 
 ```
-/code-review:code-review medium --comment <PR number or branch, if known>
+/code-review medium --comment <PR number or branch, if known>
 ```
 
 The rules above govern what it posts: drop findings that are style-only,
