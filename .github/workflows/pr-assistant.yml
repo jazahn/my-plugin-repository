@@ -1,0 +1,93 @@
+# PR assistant: automated review of every pull request by Claude, run by
+# anthropics/claude-code-action with the pr-assistant plugin's review rubric.
+#
+# Installed by /pr-assistant:install from the pr-assistant plugin
+# (jazahn/my-plugin-repository). This file is identical in every enrolled
+# repo; nothing here is edited per repo. The auth mode comes from repo
+# variables and secrets instead:
+#
+#   PR_ASSISTANT_MODE       personal | team
+#   PR_ASSISTANT_MINTED     YYYY-MM-DD the credential was created (for rotation)
+#   personal: secret CLAUDE_CODE_OAUTH_TOKEN   (claude setup-token, one year)
+#   team:     secret PR_ASSISTANT_API_KEY      (HUIT Apigee key for the Bedrock proxy,
+#                                              sent as Authorization: Bearer)
+#             PR_ASSISTANT_PROXY_URL           the proxy base URL (required)
+#             PR_ASSISTANT_MODEL               us.anthropic.* inference profile id
+#                                              (default us.anthropic.claude-fable-5)
+#             PR_ASSISTANT_OPUS_MODEL          fallback id for refusals
+#                                              (default us.anthropic.claude-opus-4-8)
+#
+# Switching modes later means changing the variables and secrets, not this
+# file. The job is read-only on the repo: it posts review comments and never
+# pushes. It is not meant to be a required check; a dead credential means a
+# missing review, not a blocked merge. Fork PRs and Dependabot PRs are
+# skipped: they get no Actions secrets, so the job could only fail on them.
+name: PR assistant
+
+on:
+  pull_request:
+    types: [opened, synchronize, ready_for_review, reopened]
+
+concurrency:
+  group: pr-assistant-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+
+jobs:
+  review:
+    if: >-
+      github.event.pull_request.draft == false &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.actor != 'dependabot[bot]'
+    runs-on: ubuntu-latest
+    env:
+      # Forwarded by the action into Claude Code; empty strings in personal
+      # mode are treated as unset (verified 2026-11-25). Everything mode-
+      # specific is gated on the mode, so a stale variable or secret from
+      # the other mode is ignored.
+      ANTHROPIC_BEDROCK_BASE_URL: ${{ vars.PR_ASSISTANT_MODE == 'team' && vars.PR_ASSISTANT_PROXY_URL || '' }}
+      # The action insists on a region and a Bedrock credential in Bedrock
+      # mode. The region is nominal (the base URL above wins); the key goes
+      # out as a bearer token, which the proxy accepts.
+      AWS_REGION: ${{ vars.PR_ASSISTANT_MODE == 'team' && 'us-east-1' || '' }}
+      AWS_BEARER_TOKEN_BEDROCK: ${{ vars.PR_ASSISTANT_MODE == 'team' && secrets.PR_ASSISTANT_API_KEY || '' }}
+      ANTHROPIC_DEFAULT_OPUS_MODEL: ${{ vars.PR_ASSISTANT_MODE == 'team' && (vars.PR_ASSISTANT_OPUS_MODEL || 'us.anthropic.claude-opus-4-8') || '' }}
+    steps:
+      - name: Check the enrollment record
+        env:
+          MODE: ${{ vars.PR_ASSISTANT_MODE }}
+          HAS_OAUTH: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN != '' }}
+          HAS_KEY: ${{ secrets.PR_ASSISTANT_API_KEY != '' }}
+          PROXY: ${{ vars.PR_ASSISTANT_PROXY_URL }}
+        run: |
+          case "$MODE" in
+            personal)
+              [ "$HAS_OAUTH" = "true" ] || { echo "::error::PR_ASSISTANT_MODE is personal but the secret CLAUDE_CODE_OAUTH_TOKEN is not set. Run /pr-assistant:rotate personal (or /pr-assistant:install)."; exit 1; } ;;
+            team)
+              [ "$HAS_KEY" = "true" ] || { echo "::error::PR_ASSISTANT_MODE is team but the secret PR_ASSISTANT_API_KEY is not set. Run /pr-assistant:rotate team (or /pr-assistant:install)."; exit 1; }
+              [ -n "$PROXY" ] || { echo "::error::PR_ASSISTANT_MODE is team but the variable PR_ASSISTANT_PROXY_URL is not set. Run /pr-assistant:install."; exit 1; } ;;
+            *)
+              echo "::error::PR_ASSISTANT_MODE must be personal or team (got '$MODE'). Run /pr-assistant:install."; exit 1 ;;
+          esac
+          echo "pr-assistant mode: $MODE"
+
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: anthropics/claude-code-action@v1
+        with:
+          # The workflow token, so no Claude GitHub App install is needed.
+          # Comments post as github-actions[bot].
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          # Personal mode passes the OAuth token; team mode's key is in the job env above.
+          claude_code_oauth_token: ${{ vars.PR_ASSISTANT_MODE == 'personal' && secrets.CLAUDE_CODE_OAUTH_TOKEN || '' }}
+          use_bedrock: ${{ vars.PR_ASSISTANT_MODE == 'team' && 'true' || 'false' }}
+          claude_args: ${{ vars.PR_ASSISTANT_MODE == 'team' && format('--model {0}', vars.PR_ASSISTANT_MODEL || 'us.anthropic.claude-fable-5') || '' }}
+          plugin_marketplaces: https://github.com/jazahn/my-plugin-repository.git
+          plugins: pr-assistant@my-plugin-marketplace
+          prompt: /pr-assistant:review
