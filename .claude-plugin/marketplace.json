@@ -15,6 +15,18 @@
         "atlassian",
         "mcp"
       ]
+    },
+    {
+      "name": "pr-assistant",
+      "source": "./plugins/pr-assistant",
+      "description": "Automated review of every pull request in the repos you enroll, run by anthropics/claude-code-action with this plugin's review rubric. /pr-assistant:install drops one workflow file into a repo and sets its secret and variables; /pr-assistant:rotate lists enrolled repos and rotates a credential across all of them. Auth mode per repo by variables: personal (subscription OAuth token) or team (HUIT Bedrock proxy key). No org admin needed.",
+      "category": "development",
+      "tags": [
+        "github",
+        "pull-request",
+        "code-review",
+        "github-actions"
+      ]
     }
   ]
 }

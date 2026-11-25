@@ -1,0 +1,12 @@
+{
+  "name": "pr-assistant",
+  "displayName": "PR Assistant",
+  "version": "0.1.0",
+  "description": "Automated review of every pull request in the repos you enroll, run by anthropics/claude-code-action with this plugin's review rubric (/pr-assistant:review). /pr-assistant:install drops one workflow file into a repo and sets its secret and variables; /pr-assistant:rotate lists enrolled repos and rotates a credential across all of them in one pass. Two auth modes chosen by repo variables, with the same workflow file everywhere: personal (subscription OAuth token) or team (HUIT Apigee-fronted Bedrock key). Self-service from gh; no org admin, GitHub App install, or Console setup needed.",
+  "author": {
+    "name": "JaZahn Clevenger"
+  },
+  "repository": "https://github.com/jazahn/my-plugin-repository",
+  "license": "MIT",
+  "keywords": ["github", "pull-request", "code-review", "github-actions"]
+}

@@ -9,12 +9,14 @@ HUIT marketplaces instead.
 | Plugin | What it does | Entry point |
 |---|---|---|
 | `trello` | Read and change your Trello boards, lists, and cards through Atlassian's hosted Trello MCP server, with an Atlassian login and no API key. Includes `card-first`: find or create the card for a work item before starting, keep it updated | `/trello:trello-setup`, then `/mcp`; `/trello:card-first` |
+| `pr-assistant` | Automated review of every pull request in repos you enroll, run by `anthropics/claude-code-action` with this plugin's review rubric. One identical workflow file per repo; the auth mode (your subscription token, or the HUIT Bedrock proxy key for team repos) is picked by repo variables. Lists enrolled repos and rotates a credential across all of them in one pass | `/pr-assistant:install` in a repo; `/pr-assistant:rotate` |
 
 ## Install
 
 ```
 /plugin marketplace add jazahn/my-plugin-repository
 /plugin install trello@my-plugin-marketplace
+/plugin install pr-assistant@my-plugin-marketplace
 ```
 
 To work on it locally instead, add the checkout:
@@ -76,6 +78,44 @@ A `SessionStart` hook reads that file and reminds Claude to run the check when
 a work item starts; with `card-first: off` it stays silent. Invoke it by hand
 with `/trello:card-first`.
 
+## pr-assistant
+
+Turns Claude into a reviewer for every pull request in the repos you choose.
+A Claude Code plugin cannot see GitHub events, so the trigger is a GitHub
+Actions workflow in each repo running `anthropics/claude-code-action@v1`;
+the plugin carries the review rubric the action runs (`/pr-assistant:review`)
+and the tooling around it. The workflow file is identical in every enrolled
+repo. Which credential it runs on is chosen by repo variables, so switching
+modes later touches no file:
+
+| Mode | Credential | For |
+|---|---|---|
+| `personal` | secret `CLAUDE_CODE_OAUTH_TOKEN` from `claude setup-token` (one year, your subscription) | repos you own |
+| `team` | secret `PR_ASSISTANT_API_KEY`, an Apigee key for the HUIT Bedrock proxy, plus `PR_ASSISTANT_PROXY_URL` and `PR_ASSISTANT_MODEL` | team repos; billed to the API product, not a person |
+
+Nothing here needs an org admin: no org secrets, no GitHub App install on
+the org, no Console setup. Secrets are set by you at your terminal; the
+skills never see the values.
+
+- `/pr-assistant:install` in a checkout: copies the workflow to
+  `.github/workflows/pr-assistant.yml`, prints the `gh secret set` command
+  for you to run, sets `PR_ASSISTANT_MODE` and `PR_ASSISTANT_MINTED` (and the
+  team variables), and offers a branch and PR. The PR is the first test.
+- `/pr-assistant:rotate`: finds every enrolled repo on github.com and
+  github.huit.harvard.edu by the workflow file, shows mode and credential
+  age, and with `personal` or `team` prints one loop that rotates that
+  secret in all of them. A `SessionStart` hook nudges once when a
+  credential passes eleven months, from a per-machine cache in
+  `~/.claude/pr-assistant-rotation.md`.
+- `/pr-assistant:review`: the rubric (correctness, security, untested
+  behavior changes, scope; small fixes as `suggestion` blocks; out-of-scope
+  work as one follow-up paragraph, never a new PR). It delegates the diff
+  review and the inline posting to the official `code-review` plugin, which
+  the workflow installs alongside this one.
+
+Version 0.1 posts review comments only; it never pushes. Not meant to be a
+required check.
+
 ## Layout
 
 ```
@@ -87,6 +127,14 @@ plugins/trello/
   scripts/card-first-nudge.sh            the hook script; prints nothing when card-first is off
   skills/trello-setup/SKILL.md           the /mcp walkthrough and troubleshooting
   skills/card-first/SKILL.md             find or create the card for a work item, keep it updated
+plugins/pr-assistant/
+  .claude-plugin/plugin.json             manifest
+  hooks/hooks.json                       SessionStart nudge when a credential is due for rotation
+  scripts/rotation-nudge.sh              the hook script; reads ~/.claude/pr-assistant-rotation.md
+  templates/pr-assistant.yml             the workflow file install copies into repos, unchanged
+  skills/review/SKILL.md                 the rubric the action runs; delegates to code-review
+  skills/install/SKILL.md                enroll a repo: workflow, secret (by you), variables, PR
+  skills/rotate/SKILL.md                 list enrolled repos; rotate one mode's secret everywhere
 ```
 
 Validate before committing:
@@ -95,6 +143,8 @@ Validate before committing:
 claude plugin validate .
 claude plugin validate plugins/trello
 claude plugin validate plugins/trello/skills
+claude plugin validate plugins/pr-assistant
+claude plugin validate plugins/pr-assistant/skills
 ```
 
 Bump the plugin's `version` on every change you publish; that field is what

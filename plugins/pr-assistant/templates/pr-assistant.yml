@@ -1,0 +1,63 @@
+# PR assistant: automated review of every pull request by Claude, run by
+# anthropics/claude-code-action with the pr-assistant plugin's review rubric.
+#
+# Installed by /pr-assistant:install from the pr-assistant plugin
+# (jazahn/my-plugin-repository). This file is identical in every enrolled
+# repo; nothing here is edited per repo. The auth mode comes from repo
+# variables and secrets instead:
+#
+#   PR_ASSISTANT_MODE       personal | team
+#   PR_ASSISTANT_MINTED     YYYY-MM-DD the credential was created (for rotation)
+#   personal: secret CLAUDE_CODE_OAUTH_TOKEN   (claude setup-token, one year)
+#   team:     secret PR_ASSISTANT_API_KEY      (HUIT Apigee key for the Bedrock proxy)
+#             PR_ASSISTANT_PROXY_URL           the proxy base URL
+#             PR_ASSISTANT_MODEL               a us.anthropic.* inference profile id
+#
+# Switching modes later means changing the variables and secrets, not this
+# file. The job is read-only on the repo: it posts review comments and never
+# pushes. It is not meant to be a required check; a dead credential means a
+# missing review, not a blocked merge.
+name: PR assistant
+
+on:
+  pull_request:
+    types: [opened, synchronize, ready_for_review, reopened]
+
+concurrency:
+  group: pr-assistant-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+
+jobs:
+  review:
+    if: github.event.pull_request.draft == false
+    runs-on: ubuntu-latest
+    env:
+      # Forwarded by the action into Claude Code only when set; empty in personal mode.
+      ANTHROPIC_BEDROCK_BASE_URL: ${{ vars.PR_ASSISTANT_PROXY_URL }}
+      ANTHROPIC_DEFAULT_OPUS_MODEL: ${{ vars.PR_ASSISTANT_MODE == 'team' && 'us.anthropic.claude-opus-4-8' || '' }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: anthropics/claude-code-action@v1
+        with:
+          # The workflow token, so no Claude GitHub App install is needed.
+          # Comments post as github-actions[bot].
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          # Exactly one of these is set per repo; a missing secret is an empty string.
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          anthropic_api_key: ${{ secrets.PR_ASSISTANT_API_KEY }}
+          use_bedrock: ${{ vars.PR_ASSISTANT_MODE == 'team' && 'true' || 'false' }}
+          settings: ${{ vars.PR_ASSISTANT_MODE == 'team' && '{"env":{"CLAUDE_CODE_SKIP_BEDROCK_AUTH":"1"}}' || '' }}
+          claude_args: ${{ vars.PR_ASSISTANT_MODE == 'team' && format('--model {0}', vars.PR_ASSISTANT_MODEL) || '' }}
+          plugin_marketplaces: https://github.com/jazahn/my-plugin-repository.git
+          plugins: |
+            code-review@claude-plugins-official
+            pr-assistant@my-plugin-marketplace
+          prompt: /pr-assistant:review

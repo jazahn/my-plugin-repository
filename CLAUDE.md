@@ -20,7 +20,7 @@ and the plugin install uses the marketplace name
 (`trello@my-plugin-marketplace`). The marketplace name is baked into every
 local registration, so decide the final name before anyone else adds it.
 
-One plugin so far: `trello`.
+Two plugins: `trello` and `pr-assistant`.
 
 Status (2026-11-15): all three `claude plugin validate` targets pass;
 `trello` 0.2.0 adds the `card-first` skill and its `SessionStart` hook (#2)
@@ -28,6 +28,11 @@ and is installed at user scope from this checkout on JaZahn's Mac. The
 2026-11-05 scaffold is committed and pushed (758cd84) and a claude.ai-synced
 copy of 0.1.0 exists; the 0.2.0 changes are uncommitted. Tracking: issue #1
 (the plugin and its verification gate), #2 (`card-first`), #3 (repo rename).
+
+`pr-assistant` 0.1.0 (started 2026-11-25, issue #4, Trello card
+"pr-assistant plugin: automated PR review via claude-code-action"): files
+written, validated, installed at user scope; see its section below for
+what is verified.
 
 ## Commands
 
@@ -38,6 +43,8 @@ manifest, plugin manifest, skill frontmatter), so run all three per plugin:
 claude plugin validate .
 claude plugin validate plugins/trello
 claude plugin validate plugins/trello/skills
+claude plugin validate plugins/pr-assistant
+claude plugin validate plugins/pr-assistant/skills
 ```
 
 Test from the local checkout, not from GitHub:
@@ -56,6 +63,18 @@ started after the install.
 
 Bump `version` in the plugin's `plugin.json` on every published change. It is
 the only update signal installed copies see.
+
+Headless check after a reinstall (a `-p` session runs `SessionStart` hooks
+and loads plugin skills; each call takes about a minute):
+
+```sh
+claude -p 'Quote the context line that begins "trello plugin:" verbatim, or NONE.' --output-format text
+claude -p 'Is a skill named "trello:card-first" available? YES or NO.' --output-format text
+```
+
+macOS has no `timeout` command; rely on the Bash tool's own timeout. Test
+the hook script directly by pointing `CLAUDE_PROJECT_DIR` at a directory
+whose `CLAUDE.local.md` has the setting under test.
 
 ## Layout and conventions
 
@@ -202,6 +221,75 @@ they are not re-litigated:
       create and with skip, and on the wrap-up update; then close #2.
 - [ ] Later, if the bare tools prove awkward: a `trello` query skill with
       usage patterns, after some real use.
+
+## pr-assistant plugin (#4)
+
+Automated PR review. A plugin cannot see GitHub events, so the trigger is
+a GitHub Actions workflow per repo running `anthropics/claude-code-action@v1`
+with `plugins: pr-assistant@my-plugin-marketplace` and
+`prompt: /pr-assistant:review`. The plugin carries the rubric and the
+tooling; the workflow is the same file everywhere. Decisions, so they are
+not re-litigated:
+
+- **No admin anywhere.** No org secrets, no Claude GitHub App on the HUIT
+  org, no Console federation. The workflow passes `secrets.GITHUB_TOKEN`
+  as `github_token` with `pull-requests: write` + `issues: write`, so
+  comments post as `github-actions[bot]`.
+- **Two modes, one file, chosen by repo variables.** `PR_ASSISTANT_MODE`
+  is `personal` (secret `CLAUDE_CODE_OAUTH_TOKEN`, `claude setup-token`,
+  one year, tied to the subscriber) or `team` (secret
+  `PR_ASSISTANT_API_KEY`, an Apigee key for the HUIT Bedrock proxy at
+  `https://go.apis.huit.harvard.edu/ais-bedrock-llm/v2`, same proxy as
+  `~/.claude/profiles/bedrock-proxy.json`). Team mode wires
+  `use_bedrock: true`, job env `ANTHROPIC_BEDROCK_BASE_URL`, the key as
+  `anthropic_api_key` (sent as `x-api-key`), `settings` env
+  `CLAUDE_CODE_SKIP_BEDROCK_AUTH=1`, and `claude_args --model` with a
+  `us.anthropic.*` id. Those routes follow from `action.yml`: the
+  composite step forwards only a fixed env list (`ANTHROPIC_BEDROCK_BASE_URL`
+  and `ANTHROPIC_DEFAULT_OPUS_MODEL` are on it; `CLAUDE_CODE_SKIP_BEDROCK_AUTH`
+  and `ANTHROPIC_MODEL` are not).
+- **Self-contained workflow per repo**, not a hub with a reusable
+  workflow: reusable workflows cannot be called across GitHub hosts
+  (github.com vs github.huit.harvard.edu).
+- **Registry = the repos themselves.** `PR_ASSISTANT_MINTED` (date) next
+  to the mode; `rotate` discovers enrolled repos by the workflow file. The
+  only local state is the cache `~/.claude/pr-assistant-rotation.md`
+  (rotate-by dates) that the SessionStart hook reads, offline.
+- **Secrets never pass through a session.** The skills print the
+  `gh secret set` command (or a one-value loop for rotation) for the user
+  to run at a terminal.
+- **0.1 is review-only.** Inline comments and a summary; never pushes;
+  not a required check. The `review` skill states the rubric and
+  delegates the diff review and posting to `code-review@claude-plugins-official`,
+  which the workflow installs next to this plugin. The `@claude` mention
+  job (fix on request, follow-up PR on request) is 0.2.
+- The marketplace URL in the template is the current repo name
+  (`my-plugin-repository.git`); after the #3 rename GitHub redirects
+  clones, so it keeps working.
+
+Known risks to verify on the first runs: the no-App `GITHUB_TOKEN` path
+is not documented by the action; the rubric's reach into `code-review`'s
+subagents is unverified; the action's default auto permission mode may
+fail on the proxy with "cannot determine the safety of an action" (fix:
+`--permission-mode` in `claude_args`); GHES needs
+`anthropics/claude-code-action` resolvable (GitHub Connect or vendoring)
+and runners that can clone the marketplace from github.com.
+
+### To do
+
+- [x] Validate, install from this checkout, headless skill and hook
+      checks (done 2026-11-25; cache path
+      `~/.claude/plugins/cache/my-plugin-marketplace/pr-assistant/0.1.0`).
+- [ ] Push 0.1.0 to main first (the action clones the marketplace's
+      default branch), then enroll this repo in personal mode via
+      `/pr-assistant:install` and confirm a review on the PR.
+- [ ] Team-mode smoke test on the same repo (switch the variables, set
+      the Apigee key, push a commit to the PR), then switch back. Record
+      what the proxy needed.
+- [ ] GHES trial on one HUIT repo (action availability, marketplace
+      clone, `GH_HOST` paths in the skills).
+- [ ] Later: 0.2 mention job; a review-standards template for repo
+      CLAUDE.md files.
 
 ## Memory routing
 
