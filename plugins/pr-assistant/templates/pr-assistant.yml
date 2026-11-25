@@ -20,8 +20,8 @@
 # Switching modes later means changing the variables and secrets, not this
 # file. The job is read-only on the repo: it posts review comments and never
 # pushes. It is not meant to be a required check; a dead credential means a
-# missing review, not a blocked merge. Fork PRs are skipped: they get no
-# secrets and a read-only token, so the job could only fail on them.
+# missing review, not a blocked merge. Fork PRs and Dependabot PRs are
+# skipped: they get no Actions secrets, so the job could only fail on them.
 name: PR assistant
 
 on:
@@ -41,7 +41,8 @@ jobs:
   review:
     if: >-
       github.event.pull_request.draft == false &&
-      github.event.pull_request.head.repo.full_name == github.repository
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.actor != 'dependabot[bot]'
     runs-on: ubuntu-latest
     env:
       # Forwarded by the action into Claude Code; empty strings in personal

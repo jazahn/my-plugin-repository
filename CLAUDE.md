@@ -241,13 +241,19 @@ not re-litigated:
   `PR_ASSISTANT_API_KEY`, an Apigee key for the HUIT Bedrock proxy at
   `https://go.apis.huit.harvard.edu/ais-bedrock-llm/v2`, same proxy as
   `~/.claude/profiles/bedrock-proxy.json`). Team mode wires
-  `use_bedrock: true`, job env `ANTHROPIC_BEDROCK_BASE_URL`, the key as
-  `anthropic_api_key` (sent as `x-api-key`), `settings` env
-  `CLAUDE_CODE_SKIP_BEDROCK_AUTH=1`, and `claude_args --model` with a
-  `us.anthropic.*` id. Those routes follow from `action.yml`: the
-  composite step forwards only a fixed env list (`ANTHROPIC_BEDROCK_BASE_URL`
-  and `ANTHROPIC_DEFAULT_OPUS_MODEL` are on it; `CLAUDE_CODE_SKIP_BEDROCK_AUTH`
-  and `ANTHROPIC_MODEL` are not).
+  `use_bedrock: true`, job env `ANTHROPIC_BEDROCK_BASE_URL` (the proxy),
+  `AWS_REGION=us-east-1` (nominal; the action refuses Bedrock mode
+  without a region, the base URL wins), `AWS_BEARER_TOKEN_BEDROCK` (the
+  Apigee key, sent as `Authorization: Bearer`; the proxy accepts that
+  header and `x-api-key` alike, probed 2026-11-25), and `claude_args
+  --model` with a `us.anthropic.*` id. No skip-auth setting. Those
+  routes follow from `action.yml`: the composite step forwards only a
+  fixed env list (`ANTHROPIC_BEDROCK_BASE_URL`, `ANTHROPIC_DEFAULT_OPUS_MODEL`,
+  `AWS_REGION`, `AWS_BEARER_TOKEN_BEDROCK` are on it; `ANTHROPIC_MODEL` and
+  `CLAUDE_CODE_SKIP_BEDROCK_AUTH` are not). The key sits in job-level env
+  because the action's own note says step-level env is shadowed inside
+  the composite; the cost is that the preflight and checkout steps see it
+  too (masked in logs).
 - **Self-contained workflow per repo**, not a hub with a reusable
   workflow: reusable workflows cannot be called across GitHub hosts
   (github.com vs github.huit.harvard.edu).
@@ -291,12 +297,15 @@ automated PR review (pr-assistant)"):
   Actions log; use it only for a diagnostic run and never merge it.
 - Empty-string env values in personal mode (`ANTHROPIC_BEDROCK_BASE_URL`)
   are treated as unset.
+- Team mode through the HUIT proxy works: the same PR reviewed on
+  `us.anthropic.claude-fable-5` in 9 turns and 6.5 minutes; the action's
+  cost estimate was $2.43 at list price (Sonnet in personal mode: 6 turns,
+  20 s, $0.19). Auto permission mode gave no classifier error. The
+  rubric's follow-up paragraph fired (it flagged this file as stale).
+- Fork PRs and Dependabot PRs get no Actions secrets, so the job skips
+  them by `if`; otherwise the preflight would fail red on each.
 
-Still to verify: the no-App `GITHUB_TOKEN` path
-the rubric's reach into `code-review`'s subagents (the skill filters its
-output instead); the action's default auto permission mode may
-fail on the proxy with "cannot determine the safety of an action" (fix:
-`--permission-mode` in `claude_args`); GHES needs
+Still to verify: GHES needs
 `anthropics/claude-code-action` resolvable (GitHub Connect or vendoring)
 and runners that can clone the marketplace from github.com.
 
@@ -305,12 +314,15 @@ and runners that can clone the marketplace from github.com.
 - [x] Validate, install from this checkout, headless skill and hook
       checks (done 2026-11-25; cache path
       `~/.claude/plugins/cache/my-plugin-marketplace/pr-assistant/0.1.0`).
-- [ ] Push 0.1.0 to main first (the action clones the marketplace's
-      default branch), then enroll this repo in personal mode via
-      `/pr-assistant:install` and confirm a review on the PR.
-- [ ] Team-mode smoke test on the same repo (switch the variables, set
-      the Apigee key, push a commit to the PR), then switch back. Record
-      what the proxy needed.
+- [x] Pushed to main; this repo enrolled in personal mode on PR #5
+      (2026-11-25; the enrollment was done by hand following the install
+      skill's steps, the skill itself has not been run interactively yet).
+- [x] Team-mode smoke test on PR #5 (2026-11-25), then switched back to
+      personal. The team variables and `PR_ASSISTANT_API_KEY` stay on the
+      repo, gated off by the mode, so a team test is one variable flip.
+- [ ] Merge PR #5 to keep this repo enrolled; run `/pr-assistant:install`
+      and `/pr-assistant:rotate` interactively on another repo to exercise
+      the skills as written.
 - [ ] GHES trial on one HUIT repo (action availability, marketplace
       clone, `GH_HOST` paths in the skills).
 - [ ] Later: 0.2 mention job; a review-standards template for repo
