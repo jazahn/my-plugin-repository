@@ -59,3 +59,4 @@ jobs:
           plugin_marketplaces: https://github.com/jazahn/my-plugin-repository.git
           plugins: pr-assistant@my-plugin-marketplace
           prompt: /pr-assistant:review
+          show_full_output: "true"   # diagnostic only; remove before merge
