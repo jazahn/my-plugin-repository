@@ -108,7 +108,7 @@ These are the enrollment record. `/pr-assistant:rotate` reads them back.
 ## Step 5: the rotation cache
 
 Append or replace the line for this mode in
-`~/.claude/pr-assistant-rotation.md` with the rotate-by date, the mint
+`~/.claude/.pr-assistant-rotation` with the rotate-by date, the mint
 date plus eleven months (a one-year token minted 2026-11-25 gets
 `personal: 2027-10-25`). The plugin's SessionStart hook reads this file
 and nudges once when a date has passed. It is a per-machine cache; the

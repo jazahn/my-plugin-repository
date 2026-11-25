@@ -106,7 +106,7 @@ skills never see the values.
   age, and with `personal` or `team` prints one loop that rotates that
   secret in all of them. A `SessionStart` hook nudges once when a
   credential passes eleven months, from a per-machine cache in
-  `~/.claude/pr-assistant-rotation.md`.
+  `~/.claude/.pr-assistant-rotation`.
 - `/pr-assistant:review`: the rubric (correctness, security, untested
   behavior changes, scope; small fixes as `suggestion` blocks; out-of-scope
   work as one follow-up paragraph, never a new PR). It delegates the diff
@@ -130,7 +130,7 @@ plugins/trello/
 plugins/pr-assistant/
   .claude-plugin/plugin.json             manifest
   hooks/hooks.json                       SessionStart nudge when a credential is due for rotation
-  scripts/rotation-nudge.sh              the hook script; reads ~/.claude/pr-assistant-rotation.md
+  scripts/rotation-nudge.sh              the hook script; reads ~/.claude/.pr-assistant-rotation
   templates/pr-assistant.yml             the workflow file install copies into repos, unchanged
   skills/review/SKILL.md                 the rubric the action runs; delegates to code-review
   skills/install/SKILL.md                enroll a repo: workflow, secret (by you), variables, PR

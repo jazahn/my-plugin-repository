@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # SessionStart hook for the pr-assistant plugin: nudge, never block.
 #
-# Reads ~/.claude/pr-assistant-rotation.md, a per-machine cache that
+# Reads ~/.claude/.pr-assistant-rotation, a per-machine cache that
 # /pr-assistant:install and /pr-assistant:rotate write, one line per auth
 # mode holding the rotate-by date (mint date plus eleven months):
 #
@@ -18,7 +18,7 @@ set -uo pipefail
 # Drain stdin (hook input JSON) so the parent never blocks on a full pipe.
 cat >/dev/null 2>&1 || true
 
-file="${HOME}/.claude/pr-assistant-rotation.md"
+file="${HOME}/.claude/.pr-assistant-rotation"
 [ -r "$file" ] || exit 0
 
 today=$(date +%F)

@@ -73,7 +73,7 @@ The argument is `personal` or `team`. Only repos in that mode are touched.
    gh variable set PR_ASSISTANT_MINTED --body YYYY-MM-DD -R owner/repo
    ```
 
-4. Refresh `~/.claude/pr-assistant-rotation.md`: set that mode's line to
+4. Refresh `~/.claude/.pr-assistant-rotation`: set that mode's line to
    the new mint date plus eleven months.
 5. Re-run step 1 and show the table so the result is visible.
 

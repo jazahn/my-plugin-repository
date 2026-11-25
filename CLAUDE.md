@@ -253,7 +253,7 @@ not re-litigated:
   (github.com vs github.huit.harvard.edu).
 - **Registry = the repos themselves.** `PR_ASSISTANT_MINTED` (date) next
   to the mode; `rotate` discovers enrolled repos by the workflow file. The
-  only local state is the cache `~/.claude/pr-assistant-rotation.md`
+  only local state is the cache `~/.claude/.pr-assistant-rotation`
   (rotate-by dates) that the SessionStart hook reads, offline.
 - **Secrets never pass through a session.** The skills print the
   `gh secret set` command (or a one-value loop for rotation) for the user
