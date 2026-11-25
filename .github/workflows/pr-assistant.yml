@@ -9,7 +9,8 @@
 #   PR_ASSISTANT_MODE       personal | team
 #   PR_ASSISTANT_MINTED     YYYY-MM-DD the credential was created (for rotation)
 #   personal: secret CLAUDE_CODE_OAUTH_TOKEN   (claude setup-token, one year)
-#   team:     secret PR_ASSISTANT_API_KEY      (HUIT Apigee key for the Bedrock proxy)
+#   team:     secret PR_ASSISTANT_API_KEY      (HUIT Apigee key for the Bedrock proxy,
+#                                              sent as Authorization: Bearer)
 #             PR_ASSISTANT_PROXY_URL           the proxy base URL (required)
 #             PR_ASSISTANT_MODEL               us.anthropic.* inference profile id
 #                                              (default us.anthropic.claude-fable-5)
@@ -48,6 +49,11 @@ jobs:
       # specific is gated on the mode, so a stale variable or secret from
       # the other mode is ignored.
       ANTHROPIC_BEDROCK_BASE_URL: ${{ vars.PR_ASSISTANT_MODE == 'team' && vars.PR_ASSISTANT_PROXY_URL || '' }}
+      # The action insists on a region and a Bedrock credential in Bedrock
+      # mode. The region is nominal (the base URL above wins); the key goes
+      # out as a bearer token, which the proxy accepts.
+      AWS_REGION: ${{ vars.PR_ASSISTANT_MODE == 'team' && 'us-east-1' || '' }}
+      AWS_BEARER_TOKEN_BEDROCK: ${{ vars.PR_ASSISTANT_MODE == 'team' && secrets.PR_ASSISTANT_API_KEY || '' }}
       ANTHROPIC_DEFAULT_OPUS_MODEL: ${{ vars.PR_ASSISTANT_MODE == 'team' && (vars.PR_ASSISTANT_OPUS_MODEL || 'us.anthropic.claude-opus-4-8') || '' }}
     steps:
       - name: Check the enrollment record
@@ -77,11 +83,9 @@ jobs:
           # The workflow token, so no Claude GitHub App install is needed.
           # Comments post as github-actions[bot].
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          # Only the current mode's credential is passed; the other is an empty string.
+          # Personal mode passes the OAuth token; team mode's key is in the job env above.
           claude_code_oauth_token: ${{ vars.PR_ASSISTANT_MODE == 'personal' && secrets.CLAUDE_CODE_OAUTH_TOKEN || '' }}
-          anthropic_api_key: ${{ vars.PR_ASSISTANT_MODE == 'team' && secrets.PR_ASSISTANT_API_KEY || '' }}
           use_bedrock: ${{ vars.PR_ASSISTANT_MODE == 'team' && 'true' || 'false' }}
-          settings: ${{ vars.PR_ASSISTANT_MODE == 'team' && '{"env":{"CLAUDE_CODE_SKIP_BEDROCK_AUTH":"1"}}' || '' }}
           claude_args: ${{ vars.PR_ASSISTANT_MODE == 'team' && format('--model {0}', vars.PR_ASSISTANT_MODEL || 'us.anthropic.claude-fable-5') || '' }}
           plugin_marketplaces: https://github.com/jazahn/my-plugin-repository.git
           plugins: pr-assistant@my-plugin-marketplace
